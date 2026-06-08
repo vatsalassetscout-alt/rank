@@ -2,9 +2,7 @@ const axios = require('axios');
 const { google } = require('googleapis');
 
 // ========== GOOGLE SHEETS SETUP ==========
-// PASTE YOUR SERVICE ACCOUNT JSON HERE OR USE ENVIRONMENT VARIABLES
 const SERVICE_ACCOUNT_JSON = {
-   
   "type": "service_account",
   "project_id": "gsc-dashboard-490611",
   "private_key_id": "c5e9764f8be99a8e50d56240d7d3ddd82c6a3b2c",
@@ -16,12 +14,9 @@ const SERVICE_ACCOUNT_JSON = {
   "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
   "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/rank-tracker%40gsc-dashboard-490611.iam.gserviceaccount.com",
   "universe_domain": "googleapis.com"
-
-
 };
 
-// YOUR SPREADSHEET ID FROM STEP 2
-const SPREADSHEET_ID = '1GhLMTjKZh2t-pMTLPUKIGkG47phWn2FNh823-phqhAs'; // <-- PASTE YOUR ID HERE
+const SPREADSHEET_ID = '1GhLMTjKZh2t-pMTLPUKIGkG47phWn2FNh823-phqhAs';
 
 let sheetsClient = null;
 
@@ -29,14 +24,12 @@ async function initGoogleSheets() {
   try {
     let auth;
     
-    // Check if we have service account JSON
     if (SERVICE_ACCOUNT_JSON.private_key) {
       auth = new google.auth.GoogleAuth({
         credentials: SERVICE_ACCOUNT_JSON,
         scopes: ['https://www.googleapis.com/auth/spreadsheets'],
       });
     } else if (process.env.GOOGLE_CREDENTIALS) {
-      // Use environment variable (for production)
       const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
       auth = new google.auth.GoogleAuth({
         credentials: credentials,
@@ -57,7 +50,6 @@ async function initGoogleSheets() {
   }
 }
 
-// Read all trackers from Google Sheets
 async function getTrackersFromSheet() {
   try {
     if (!sheetsClient) await initGoogleSheets();
@@ -65,13 +57,12 @@ async function getTrackersFromSheet() {
 
     const response = await sheetsClient.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: 'Sheet1!A:F', // Change 'Sheet1' to your sheet name if different
+      range: 'Sheet1!A:F',
     });
 
     const rows = response.data.values || [];
     if (rows.length <= 1) return [];
 
-    // Convert rows to tracker objects (skip header row)
     return rows.slice(1).map(row => ({
       id: row[0] || '',
       domain: row[1] || '',
@@ -86,15 +77,13 @@ async function getTrackersFromSheet() {
   }
 }
 
-// Save all trackers to Google Sheets
 async function saveTrackersToSheet(trackers) {
   try {
     if (!sheetsClient) await initGoogleSheets();
     if (!sheetsClient) return false;
 
-    // Prepare data for sheet
     const values = [
-      ['ID', 'Domain', 'Keyword', 'Country', 'Position', 'Last Checked'], // Header
+      ['ID', 'Domain', 'Keyword', 'Country', 'Position', 'Last Checked'],
       ...trackers.map(t => [
         t.id,
         t.domain,
@@ -105,7 +94,6 @@ async function saveTrackersToSheet(trackers) {
       ])
     ];
 
-    // Clear existing data and write new data
     await sheetsClient.spreadsheets.values.clear({
       spreadsheetId: SPREADSHEET_ID,
       range: 'Sheet1!A:F',
@@ -126,7 +114,7 @@ async function saveTrackersToSheet(trackers) {
   }
 }
 
-// ========== EXPRESS ROUTES ==========
+// ========== SERVERLESS HANDLER ==========
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -141,20 +129,17 @@ module.exports = async (req, res) => {
   const url = req.url;
   const method = req.method;
 
-  // GET - Fetch all trackers
   if (method === 'GET' && url === '/api/get-trackers') {
     const trackers = await getTrackersFromSheet();
     return res.status(200).json({ trackers });
   }
 
-  // POST - Save all trackers
   if (method === 'POST' && url === '/api/save-trackers') {
     const { trackers } = req.body;
     await saveTrackersToSheet(trackers);
     return res.status(200).json({ success: true });
   }
 
-  // POST - Add single tracker
   if (method === 'POST' && url === '/api/add-tracker') {
     const { id, domain, keyword, country } = req.body;
     const trackers = await getTrackersFromSheet();
@@ -163,7 +148,6 @@ module.exports = async (req, res) => {
     return res.status(200).json({ success: true });
   }
 
-  // POST - Delete tracker
   if (method === 'POST' && url === '/api/delete-tracker') {
     const { id } = req.body;
     const trackers = await getTrackersFromSheet();
@@ -172,7 +156,6 @@ module.exports = async (req, res) => {
     return res.status(200).json({ success: true });
   }
 
-  // POST - Update single tracker position
   if (method === 'POST' && url === '/api/update-tracker') {
     const { id, position, checkedAt } = req.body;
     const trackers = await getTrackersFromSheet();
@@ -185,7 +168,6 @@ module.exports = async (req, res) => {
     return res.status(200).json({ success: true });
   }
 
-  // POST - Check rank (your existing endpoint)
   if (method !== 'POST' || url !== '/api/check-rank') {
     return res.status(404).json({ error: 'Endpoint not found' });
   }
@@ -237,7 +219,6 @@ module.exports = async (req, res) => {
       }
     }
 
-    // Update position in Google Sheets if trackerId provided
     if (trackerId) {
       const trackers = await getTrackersFromSheet();
       const index = trackers.findIndex(t => t.id === trackerId);
