@@ -1,58 +1,96 @@
 const axios = require('axios');
 const { google } = require('googleapis');
 
-// Google Sheets setup
-let sheetsAuth = null;
-let spreadsheetId = 'YOUR_SPREADSHEET_ID'; // Get from sheet URL
+// ========== GOOGLE SHEETS SETUP ==========
+// PASTE YOUR SERVICE ACCOUNT JSON HERE OR USE ENVIRONMENT VARIABLES
+const SERVICE_ACCOUNT_JSON = {
+   
+  "type": "service_account",
+  "project_id": "gsc-dashboard-490611",
+  "private_key_id": "c5e9764f8be99a8e50d56240d7d3ddd82c6a3b2c",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDPmlwNU1qDzfyH\npEDuaLyiF1D+T7v6G0zUClBuvccvxTVKlCqsd86brXV2tiDp7BJoGfSkioN30VUt\nlBMWyRjSeDKelVFtzwsOyPY2vIy3WHLVXP4CtG3deEdwwHU4OLGLNvUuxrQgKbxO\nijZaQzwfIM98yR6J9tLZoo0JGIzNOPx+crPSgiMd4lbtmvsHznFSuwVQhzqO0Dgp\nPiDrMuGUrlKZTyLODBkfMXKzx3aQ95YjLHqbQJI2VOEj9U54khUtpg1M6LCEP3G4\n8b8WFdaXWE0Xd1n3lUWhtXLCVSKXzp7lp9JtrfBXZ2JpGOdan0vLUGUu3IXo/Pu7\nowbzlSK9AgMBAAECggEAL7PlYP59NvoXA8f/T4jrh0daSgViSTcKsVJpZvjekyB6\nfVeMcrLY27bA3fU9nOKs3BTSvRhC2z5TlzSGKl8s//e0kfH3kwbXIJ+Wy78Jinud\nb1990ntJH3Gq4MKobLHCQh3vur7X1uggJ9/kW1tFrlVot+CyzrrTekS6qZNljyYV\nyuVEuUbqHevpKjN2UNrc3cuY0QuGbfFuKBc79NScgBfX6qxp/5Wu1xbI45/MlZVO\ngGTvyCqaUcPd6L3ug6/tDN+VeL0U1NnXZM3cxf93JioKa/Rs/vuyuhOQQQwLKANY\nRVX8HoGwZNPoRL+4Sa4MWxPRtPQZGNWriiVIOFvCtQKBgQD4KxZLLoaQ+FIyozzY\nw6LKV91lyqFWozlZm5/1uE3NkL8mcT0iQw392wsUYC0u1g14m7Q1QiJo3KfxdldD\nNR1kkXPx0qdqvKlQ8zk0XSK4/yxpPBiaY2W8P2OkIXnUmnQ1ZbpzmlrZXJFHmJCE\nlKF5zzdJ5d2CzyyTQmH8phym4wKBgQDWJ40rr98oU2TgNFNHeTT0tXbzcK0rwONi\nPeYt2YRpZLVSbmjtfHaTrf88PCpMiNoZn9K08zbnrH7SQhiowZHiDIlg4dv+vRYM\nH6U8vyrjswt+2BvWhYl8ztu853gBXt9c23eAyGFE8EHhwIlAkCFiG1/ucYtCddIr\nco8l6pmh3wKBgGO73S/FuOrWASK8m515shijiyR3dLN+0XODqZt0wD/W5hsq8yir\nzhmxSBieNkpWV/+ag6fLtkxyMURHDPbDh9Z85h3PTN0GiP0xYlH7BBNY6Z45OqIB\nREeNKhwyH+YjVISJJ4+B/vTP0Mr3M0009lgfwNZ//K+vVvivevWwRF+FAoGBAI0Y\nc/eDoWjlQQJDF1dw8UYFRUDxTPcV1/qDQ+OTe50g4CJWYkWOCmYUbqSWE1xnkiLt\n3RqhX9xWFxyatbqCBobDscOmK5bzp9IHC4wxe6WX8ov5AKZfRw13EOmuK6/jfRCl\n/F9aJlQQY6fEfemOzJ/h31uvbYw1Kmq7yLq3jc9LAoGBAMV1h5ZcWj1BednQTDUl\nzLWXgku+ykuec+szm50fUx05uu9UbatgAnaIGma4RNro14N3ztrq3RUIZmGe3V0J\n/S7hAF69CKn1ul9MgglmwZSuONEUsaV/Rbhb00hcQKiln1rRzwvoDg+FPUz+Jekd\ncl1LGN2dXec3OK+BN7FNbklw\n-----END PRIVATE KEY-----\n",
+  "client_email": "rank-tracker@gsc-dashboard-490611.iam.gserviceaccount.com",
+  "client_id": "106401473989273140192",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/rank-tracker%40gsc-dashboard-490611.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+
+
+};
+
+// YOUR SPREADSHEET ID FROM STEP 2
+const SPREADSHEET_ID = '1GhLMTjKZh2t-pMTLPUKIGkG47phWn2FNh823-phqhAs'; // <-- PASTE YOUR ID HERE
+
+let sheetsClient = null;
 
 async function initGoogleSheets() {
   try {
-    const auth = new google.auth.GoogleAuth({
-      keyFile: 'path-to-your-service-account-key.json',
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
-    sheetsAuth = await auth.getClient();
-    return google.sheets({ version: 'v4', auth: sheetsAuth });
+    let auth;
+    
+    // Check if we have service account JSON
+    if (SERVICE_ACCOUNT_JSON.private_key) {
+      auth = new google.auth.GoogleAuth({
+        credentials: SERVICE_ACCOUNT_JSON,
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+      });
+    } else if (process.env.GOOGLE_CREDENTIALS) {
+      // Use environment variable (for production)
+      const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+      auth = new google.auth.GoogleAuth({
+        credentials: credentials,
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+      });
+    } else {
+      console.error('No Google credentials found!');
+      return null;
+    }
+    
+    const authClient = await auth.getClient();
+    sheetsClient = google.sheets({ version: 'v4', auth: authClient });
+    console.log('✅ Google Sheets connected successfully');
+    return sheetsClient;
   } catch (error) {
-    console.error('Google Sheets auth error:', error);
+    console.error('❌ Google Sheets auth error:', error.message);
     return null;
   }
 }
 
-// Read trackers from Google Sheets
+// Read all trackers from Google Sheets
 async function getTrackersFromSheet() {
   try {
-    const sheets = await initGoogleSheets();
-    if (!sheets) return [];
+    if (!sheetsClient) await initGoogleSheets();
+    if (!sheetsClient) return [];
 
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: 'Trackers!A:F', // Sheet name and columns
+    const response = await sheetsClient.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Sheet1!A:F', // Change 'Sheet1' to your sheet name if different
     });
 
     const rows = response.data.values || [];
-    if (rows.length <= 1) return []; // Skip header row
+    if (rows.length <= 1) return [];
 
-    // Convert rows to tracker objects
+    // Convert rows to tracker objects (skip header row)
     return rows.slice(1).map(row => ({
-      id: row[0],
-      domain: row[1],
-      keyword: row[2],
-      country: row[3],
-      pos: row[4] === 'null' ? null : parseInt(row[4]),
-      checked: row[5]
+      id: row[0] || '',
+      domain: row[1] || '',
+      keyword: row[2] || '',
+      country: row[3] || 'us',
+      pos: row[4] === 'null' || !row[4] ? null : parseInt(row[4]),
+      checked: row[5] || null
     }));
   } catch (error) {
-    console.error('Error reading sheet:', error);
+    console.error('Error reading sheet:', error.message);
     return [];
   }
 }
 
-// Save trackers to Google Sheets
+// Save all trackers to Google Sheets
 async function saveTrackersToSheet(trackers) {
   try {
-    const sheets = await initGoogleSheets();
-    if (!sheets) return false;
+    if (!sheetsClient) await initGoogleSheets();
+    if (!sheetsClient) return false;
 
     // Prepare data for sheet
     const values = [
@@ -67,33 +105,28 @@ async function saveTrackersToSheet(trackers) {
       ])
     ];
 
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range: 'Trackers!A:F',
+    // Clear existing data and write new data
+    await sheetsClient.spreadsheets.values.clear({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Sheet1!A:F',
+    });
+
+    await sheetsClient.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Sheet1!A:F',
       valueInputOption: 'RAW',
       resource: { values }
     });
 
+    console.log(`✅ Saved ${trackers.length} trackers to Google Sheets`);
     return true;
   } catch (error) {
-    console.error('Error saving to sheet:', error);
+    console.error('Error saving to sheet:', error.message);
     return false;
   }
 }
 
-// Update single tracker position
-async function updateTrackerPosition(id, position, checkedAt) {
-  const trackers = await getTrackersFromSheet();
-  const index = trackers.findIndex(t => t.id === id);
-  
-  if (index !== -1) {
-    trackers[index].pos = position;
-    trackers[index].checked = checkedAt;
-    await saveTrackersToSheet(trackers);
-  }
-}
-
-// Express routes
+// ========== EXPRESS ROUTES ==========
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -105,21 +138,24 @@ module.exports = async (req, res) => {
     return; 
   }
 
-  // New endpoint: Get all trackers
-  if (req.method === 'GET' && req.url === '/api/get-trackers') {
+  const url = req.url;
+  const method = req.method;
+
+  // GET - Fetch all trackers
+  if (method === 'GET' && url === '/api/get-trackers') {
     const trackers = await getTrackersFromSheet();
     return res.status(200).json({ trackers });
   }
 
-  // New endpoint: Save all trackers
-  if (req.method === 'POST' && req.url === '/api/save-trackers') {
+  // POST - Save all trackers
+  if (method === 'POST' && url === '/api/save-trackers') {
     const { trackers } = req.body;
     await saveTrackersToSheet(trackers);
     return res.status(200).json({ success: true });
   }
 
-  // New endpoint: Add tracker
-  if (req.method === 'POST' && req.url === '/api/add-tracker') {
+  // POST - Add single tracker
+  if (method === 'POST' && url === '/api/add-tracker') {
     const { id, domain, keyword, country } = req.body;
     const trackers = await getTrackersFromSheet();
     trackers.push({ id, domain, keyword, country, pos: null, checked: null });
@@ -127,8 +163,8 @@ module.exports = async (req, res) => {
     return res.status(200).json({ success: true });
   }
 
-  // New endpoint: Delete tracker
-  if (req.method === 'POST' && req.url === '/api/delete-tracker') {
+  // POST - Delete tracker
+  if (method === 'POST' && url === '/api/delete-tracker') {
     const { id } = req.body;
     const trackers = await getTrackersFromSheet();
     const filtered = trackers.filter(t => t.id !== id);
@@ -136,12 +172,25 @@ module.exports = async (req, res) => {
     return res.status(200).json({ success: true });
   }
 
-  // Existing endpoint: Check rank
-  if (req.method !== 'POST' || req.url !== '/api/check-rank') {
-    return res.status(404).json({ error: 'Not found' });
+  // POST - Update single tracker position
+  if (method === 'POST' && url === '/api/update-tracker') {
+    const { id, position, checkedAt } = req.body;
+    const trackers = await getTrackersFromSheet();
+    const index = trackers.findIndex(t => t.id === id);
+    if (index !== -1) {
+      trackers[index].pos = position;
+      trackers[index].checked = checkedAt;
+      await saveTrackersToSheet(trackers);
+    }
+    return res.status(200).json({ success: true });
   }
 
-  const { apiKey, keyword, country = 'us', domain } = req.body || {};
+  // POST - Check rank (your existing endpoint)
+  if (method !== 'POST' || url !== '/api/check-rank') {
+    return res.status(404).json({ error: 'Endpoint not found' });
+  }
+
+  const { apiKey, keyword, country = 'us', domain, trackerId } = req.body || {};
 
   if (!apiKey || !keyword || !domain) {
     return res.status(400).json({
@@ -188,9 +237,15 @@ module.exports = async (req, res) => {
       }
     }
 
-    // Update position in Google Sheets if we have the tracker ID
-    if (req.body.trackerId) {
-      await updateTrackerPosition(req.body.trackerId, position, new Date().toISOString());
+    // Update position in Google Sheets if trackerId provided
+    if (trackerId) {
+      const trackers = await getTrackersFromSheet();
+      const index = trackers.findIndex(t => t.id === trackerId);
+      if (index !== -1) {
+        trackers[index].pos = position;
+        trackers[index].checked = new Date().toISOString();
+        await saveTrackersToSheet(trackers);
+      }
     }
 
     return res.status(200).json({
@@ -204,6 +259,7 @@ module.exports = async (req, res) => {
     });
 
   } catch (err) {
+    console.error('SerpAPI error:', err.message);
     if (err.code === 'ECONNABORTED') {
       return res.status(504).json({ error: 'Request timed out. Try again.' });
     }
@@ -212,9 +268,6 @@ module.exports = async (req, res) => {
         error: `SerpAPI error ${err.response.status}`,
         details: err.response.data,
       });
-    }
-    if (err.request) {
-      return res.status(503).json({ error: 'Cannot reach SerpAPI. Check your key and connection.' });
     }
     return res.status(500).json({ error: err.message });
   }
