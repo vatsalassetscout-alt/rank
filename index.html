@@ -1,603 +1,892 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RankPulse - Live SERP Tracker</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <style>
-    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>RankPulse · Keyword SERP Tracker</title>
+    <!-- Chart.js CDN for analytics style -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            transition: background-color 0.2s ease, color 0.2s, border-color 0.2s;
+        }
 
-    :root {
-      --bg: #f4f4f8;
-      --surface: #ffffff;
-      --border: #e5e7eb;
-      --text: #111827;
-      --text-muted: #6b7280;
-      --primary: #667eea;
-      --primary-end: #764ba2;
-      --header-bg: #ffffff;
-      --input-bg: #ffffff;
-      --input-border: #d1d5db;
-      --table-head: #f9fafb;
-      --row-hover: #f3f4f6;
-      --shadow: 0 1px 4px rgba(0,0,0,0.08);
-      --shadow-lg: 0 8px 32px rgba(0,0,0,0.10);
-    }
-    html.dark {
-      --bg: #0f1117;
-      --surface: #1a1d27;
-      --border: #2d3141;
-      --text: #f1f5f9;
-      --text-muted: #94a3b8;
-      --primary: #818cf8;
-      --primary-end: #a78bfa;
-      --header-bg: #1a1d27;
-      --input-bg: #23263a;
-      --input-border: #3a3f5c;
-      --table-head: #23263a;
-      --row-hover: #23263a;
-      --shadow: 0 1px 4px rgba(0,0,0,0.3);
-      --shadow-lg: 0 8px 32px rgba(0,0,0,0.4);
-    }
+        /* DARK / LIGHT MODE (inspired by dashboard reference) */
+        [data-theme="dark"] {
+            --bg: #060a12;
+            --s1: #0d1420;
+            --s2: #111c2e;
+            --s3: #172035;
+            --border: #1e2d45;
+            --border2: #243553;
+            --text: #e2e8f0;
+            --text2: #94a3b8;
+            --text3: #4a5f7a;
+            --shadow: rgba(0, 0, 0, 0.5);
+            --blue: #3b82f6;
+            --blue2: #60a5fa;
+            --green: #10b981;
+            --amber: #f59e0b;
+            --red: #ef4444;
+            --purple: #8b5cf6;
+            --mono: 'JetBrains Mono', 'SF Mono', monospace;
+        }
 
-    body {
-      font-family: 'Inter', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      transition: background 0.2s, color 0.2s;
-    }
+        [data-theme="light"] {
+            --bg: #f0f4fa;
+            --s1: #ffffff;
+            --s2: #f5f8ff;
+            --s3: #eaf0fb;
+            --border: #d1ddf0;
+            --border2: #b8cce4;
+            --text: #0f172a;
+            --text2: #475569;
+            --text3: #94a3b8;
+            --shadow: rgba(0, 0, 0, 0.06);
+            --blue: #3b82f6;
+            --blue2: #2563eb;
+            --green: #10b981;
+            --amber: #f59e0b;
+            --red: #ef4444;
+            --purple: #8b5cf6;
+            --mono: 'JetBrains Mono', 'SF Mono', monospace;
+        }
 
-    /* ── HEADER ── */
-    .header {
-      position: sticky;
-      top: 0;
-      z-index: 50;
-      background: var(--header-bg);
-      border-bottom: 1px solid var(--border);
-      box-shadow: var(--shadow);
-      display: flex;
-      align-items: center;
-      padding: 0 24px;
-      height: 64px;
-    }
-    .header-left { flex: 1; }
-    .header-title {
-      font-size: 20px;
-      font-weight: 700;
-      background: linear-gradient(135deg, var(--primary), var(--primary-end));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    .header-logo {
-      position: absolute;
-      left: 50%;
-      transform: translateX(-50%);
-      height: 32px;
-      object-fit: contain;
-    }
-    html.dark .header-logo { filter: invert(1); }
-    .header-right {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 16px;
-    }
-    .web-btn {
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--text);
-      text-decoration: none;
-      padding: 6px 14px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      transition: background 0.15s;
-    }
-    .web-btn:hover { background: var(--row-hover); }
-    .theme-toggle {
-      display: flex;
-      gap: 4px;
-      background: var(--table-head);
-      border-radius: 8px;
-      padding: 4px;
-    }
-    .theme-btn {
-      background: none;
-      border: none;
-      border-radius: 6px;
-      width: 30px;
-      height: 30px;
-      cursor: pointer;
-      font-size: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.15s;
-    }
-    .theme-btn.active { background: var(--surface); box-shadow: var(--shadow); }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+            padding: 24px 20px;
+            min-height: 100vh;
+        }
 
-    /* ── FILTER BAR ── */
-    .filter-bar {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 12px 24px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    .filter-bar input,
-    .filter-bar select {
-      height: 40px;
-      padding: 0 12px;
-      border: 1px solid var(--input-border);
-      border-radius: 8px;
-      background: var(--input-bg);
-      color: var(--text);
-      font-size: 14px;
-      font-family: inherit;
-      outline: none;
-      transition: border 0.15s;
-    }
-    .filter-bar input:focus,
-    .filter-bar select:focus { border-color: var(--primary); }
-    .filter-bar input[name="domain"] { width: 180px; }
-    .filter-bar input[name="keyword"] { width: 200px; }
-    .filter-bar select[name="country"] { width: 160px; }
-    .filter-bar input[name="apikey"] { width: 210px; }
-    .filter-bar .divider {
-      width: 1px;
-      height: 28px;
-      background: var(--border);
-      margin: 0 4px;
-    }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
 
-    /* ── BUTTONS ── */
-    .btn {
-      height: 40px;
-      padding: 0 18px;
-      border: none;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      font-family: inherit;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      transition: opacity 0.15s, transform 0.1s;
-      white-space: nowrap;
-    }
-    .btn:hover { opacity: 0.9; transform: translateY(-1px); }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-    .btn-primary {
-      background: linear-gradient(135deg, var(--primary), var(--primary-end));
-      color: #fff;
-    }
-    .btn-secondary {
-      background: var(--table-head);
-      color: var(--text);
-      border: 1px solid var(--border);
-    }
-    .btn-save {
-      background: #374151;
-      color: #fff;
-    }
-    html.dark .btn-save { background: #4b5563; }
-    .btn-check { background: #16a34a; color: #fff; padding: 0 10px; font-size: 12px; height: 30px; border-radius: 6px; }
-    .btn-delete { background: #dc2626; color: #fff; padding: 0 10px; font-size: 12px; height: 30px; border-radius: 6px; }
-    .btn-sm { height: 30px; padding: 0 12px; font-size: 12px; }
+        /* header style */
+        .header {
+            background: var(--s1);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 18px 28px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            box-shadow: 0 6px 12px var(--shadow);
+        }
 
-    /* ── MAIN CONTENT ── */
-    .main { padding: 24px; max-width: 1400px; margin: 0 auto; }
+        .logo-area h1 {
+            font-size: 26px;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--blue), var(--purple));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: -0.3px;
+        }
 
-    /* ── STAT CARDS ── */
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
-      margin-bottom: 24px;
-    }
-    @media (max-width: 900px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 500px) { .stats-grid { grid-template-columns: 1fr; } }
-    .stat-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 20px;
-      box-shadow: var(--shadow);
-      border-left: 4px solid transparent;
-    }
-    .stat-card.c-total { border-left-color: var(--primary); }
-    .stat-card.c-top3  { border-left-color: #16a34a; }
-    .stat-card.c-top10 { border-left-color: #2563eb; }
-    .stat-card.c-notfound { border-left-color: #dc2626; }
-    .stat-label {
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-muted);
-      margin-bottom: 8px;
-    }
-    .stat-value {
-      font-size: 32px;
-      font-weight: 700;
-    }
-    .stat-card.c-total .stat-value { color: var(--primary); }
-    .stat-card.c-top3  .stat-value { color: #16a34a; }
-    .stat-card.c-top10 .stat-value { color: #2563eb; }
-    .stat-card.c-notfound .stat-value { color: #dc2626; }
+        .logo-area p {
+            font-size: 12px;
+            color: var(--text2);
+            margin-top: 4px;
+        }
 
-    /* ── TABLE CARD ── */
-    .table-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      box-shadow: var(--shadow);
-      overflow: hidden;
-    }
-    .table-card-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--border);
-    }
-    .table-card-title {
-      font-size: 16px;
-      font-weight: 600;
-    }
-    .table-wrap { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; }
-    th {
-      background: var(--table-head);
-      padding: 11px 16px;
-      text-align: left;
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      border-bottom: 1px solid var(--border);
-    }
-    td {
-      padding: 13px 16px;
-      font-size: 14px;
-      border-bottom: 1px solid var(--border);
-      vertical-align: middle;
-    }
-    tr:last-child td { border-bottom: none; }
-    tr:hover td { background: var(--row-hover); }
-    .empty-row td {
-      text-align: center;
-      padding: 48px 16px;
-      color: var(--text-muted);
-    }
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
 
-    /* ── BADGES ── */
-    .badge {
-      display: inline-block;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 13px;
-      font-weight: 600;
-    }
-    .badge-1    { background: linear-gradient(135deg,#ffd700,#ffed4e); color: #333; }
-    .badge-top3 { background: #dcfce7; color: #15803d; }
-    .badge-top10{ background: #dbeafe; color: #1d4ed8; }
-    .badge-other{ background: #f3f4f6; color: #374151; }
-    html.dark .badge-top3 { background: #14532d; color: #86efac; }
-    html.dark .badge-top10{ background: #1e3a5f; color: #93c5fd; }
-    html.dark .badge-other{ background: #374151; color: #e5e7eb; }
-    .badge-none { background: #fee2e2; color: #b91c1c; }
-    html.dark .badge-none { background: #7f1d1d; color: #fca5a5; }
-    .badge-pending { background: #fef3c7; color: #b45309; }
-    html.dark .badge-pending{ background: #78350f; color: #fcd34d; }
-    .badge-checking{
-      background: #f3f4f6; color: #374151;
-      display: inline-flex; align-items: center; gap: 6px;
-    }
-    .spin { animation: spin 0.7s linear infinite; display: inline-block; }
-    @keyframes spin { to { transform: rotate(360deg); } }
+        .theme-toggle {
+            display: flex;
+            gap: 6px;
+            background: var(--s2);
+            padding: 4px;
+            border-radius: 40px;
+            border: 1px solid var(--border);
+        }
 
-    /* ── TOAST ── */
-    .toast {
-      position: fixed;
-      bottom: 28px;
-      right: 28px;
-      padding: 12px 20px;
-      border-radius: 10px;
-      font-size: 14px;
-      font-weight: 500;
-      color: #fff;
-      opacity: 0;
-      transform: translateY(12px);
-      pointer-events: none;
-      transition: opacity 0.25s, transform 0.25s;
-      z-index: 999;
-      max-width: 340px;
-    }
-    .toast.show { opacity: 1; transform: translateY(0); }
-    .toast.success { background: #16a34a; }
-    .toast.error   { background: #dc2626; }
+        .theme-btn {
+            padding: 6px 14px;
+            border-radius: 30px;
+            border: none;
+            background: transparent;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            color: var(--text2);
+        }
 
-    .actions-cell { display: flex; gap: 6px; }
-    .keyword-cell { font-weight: 600; }
-    .domain-cell  { font-family: monospace; font-size: 13px; color: var(--text-muted); }
-    .time-cell    { font-size: 12px; color: var(--text-muted); }
-  </style>
+        .theme-btn.active {
+            background: var(--blue);
+            color: white;
+        }
+
+        /* grid: left panel (add form) + right panel (domains table) */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            gap: 24px;
+            margin-bottom: 28px;
+        }
+
+        @media (max-width: 860px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--s1);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 22px;
+            box-shadow: 0 6px 12px var(--shadow);
+        }
+
+        .card h2 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-left: 4px solid var(--blue);
+            padding-left: 12px;
+        }
+
+        .input-group {
+            margin-bottom: 18px;
+        }
+
+        .input-group label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text3);
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px 14px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            color: var(--text);
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--blue);
+            box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
+        }
+
+        button {
+            background: var(--blue);
+            border: none;
+            padding: 10px 18px;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 14px;
+            color: white;
+            cursor: pointer;
+            transition: 0.2s;
+            font-family: inherit;
+        }
+
+        button:hover {
+            background: var(--blue2);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, var(--purple), var(--blue));
+            margin-top: 8px;
+            width: 100%;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        .btn-outline:hover {
+            background: var(--s2);
+            border-color: var(--blue);
+        }
+
+        .domains-table-wrapper {
+            overflow-x: auto;
+            margin-top: 16px;
+        }
+
+        .domain-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .domain-table th {
+            text-align: left;
+            padding: 16px 12px;
+            background: var(--s2);
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text2);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .domain-table td {
+            padding: 14px 12px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+
+        .domain-row {
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .domain-row:hover {
+            background: var(--s2);
+        }
+
+        .rank-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 40px;
+            font-weight: 700;
+            font-size: 13px;
+            font-family: var(--mono);
+        }
+
+        .rank-1 {
+            background: linear-gradient(135deg, #ffd700, #ffb347);
+            color: #1e293b;
+        }
+
+        .rank-top3 {
+            background: #22c55e20;
+            color: #22c55e;
+            border: 1px solid #22c55e60;
+        }
+
+        .rank-top10 {
+            background: #3b82f620;
+            color: #3b82f6;
+            border: 1px solid #3b82f660;
+        }
+
+        .rank-none {
+            background: #ef444420;
+            color: #ef4444;
+        }
+
+        .badge-pending {
+            background: var(--text3);
+            color: var(--bg);
+        }
+
+        .keyword-chip {
+            background: var(--s3);
+            border-radius: 40px;
+            padding: 2px 10px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .action-icons i {
+            margin: 0 6px;
+            cursor: pointer;
+            color: var(--text2);
+            transition: 0.2s;
+        }
+
+        .action-icons i:hover {
+            color: var(--red);
+        }
+
+        /* MODAL (keyword list popup) */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(6px);
+            z-index: 1100;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-card {
+            background: var(--s1);
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            width: 90%;
+            max-width: 680px;
+            max-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 35px rgba(0, 0, 0, 0.4);
+            animation: fadeUp 0.2s ease;
+        }
+
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            padding: 18px 24px;
+            background: var(--blue);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .close-modal {
+            background: none;
+            font-size: 24px;
+            padding: 0;
+            width: 32px;
+            transform: none;
+        }
+
+        .close-modal:hover {
+            background: none;
+            opacity: 0.7;
+            transform: none;
+        }
+
+        .modal-body {
+            padding: 16px 20px;
+            overflow-y: auto;
+            max-height: 60vh;
+        }
+
+        .keyword-item {
+            background: var(--s2);
+            border-radius: 20px;
+            padding: 14px 18px;
+            margin-bottom: 14px;
+            border-left: 4px solid var(--blue);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .keyword-text {
+            font-weight: 700;
+            font-size: 15px;
+        }
+
+        .rank-detail {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .refresh-keyword {
+            background: var(--green);
+            padding: 6px 14px;
+            font-size: 12px;
+            border-radius: 30px;
+        }
+
+        .last-check {
+            font-size: 10px;
+            color: var(--text3);
+            font-family: monospace;
+        }
+
+        .stat-summary {
+            display: flex;
+            gap: 12px;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+
+        .toast-msg {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            background: var(--s1);
+            border-left: 4px solid var(--green);
+            padding: 12px 20px;
+            border-radius: 40px;
+            box-shadow: 0 6px 18px black;
+            z-index: 1200;
+            font-weight: 500;
+            display: none;
+        }
+
+        footer {
+            text-align: center;
+            font-size: 11px;
+            color: var(--text3);
+            margin-top: 32px;
+        }
+    </style>
 </head>
 <body>
-
-<!-- HEADER -->
-<header class="header">
-  <div class="header-left">
-    <span class="header-title">RankPulse</span>
-  </div>
-  <img
-    class="header-logo"
-    src="https://assetscout.in/assets/images/Assetscout%20Logo%20Black.webp"
-    alt="Asset Scout"
-    onerror="this.style.display='none'">
-  <div class="header-right">
-    <a href="index.html" class="web-btn">Web</a>
-    <div class="theme-toggle">
-      <button class="theme-btn" id="btnLight" onclick="setTheme('light')" title="Light mode">☀️</button>
-      <button class="theme-btn active" id="btnDark" onclick="setTheme('dark')" title="Dark mode">🌙</button>
+<div class="container">
+    <div class="header">
+        <div class="logo-area">
+            <h1><i class="fas fa-chart-line"></i> RankPulse · SERP Tracker</h1>
+            <p>live Google rank monitoring · keyword insights</p>
+        </div>
+        <div class="header-actions">
+            <div class="theme-toggle">
+                <button class="theme-btn" onclick="setTheme('light')">☀️ Light</button>
+                <button class="theme-btn active" onclick="setTheme('dark')">🌙 Dark</button>
+            </div>
+        </div>
     </div>
-  </div>
-</header>
 
-<!-- FILTER BAR -->
-<div class="filter-bar">
-  <input type="text" name="domain" id="inpDomain" placeholder="Domain (e.g. apple.com)">
-  <input type="text" name="keyword" id="inpKeyword" placeholder="Keyword">
-  <select name="country" id="inpCountry">
-    <option value="us">🇺🇸 United States</option>
-    <option value="gb">🇬🇧 United Kingdom</option>
-    <option value="in">🇮🇳 India</option>
-    <option value="ca">🇨🇦 Canada</option>
-    <option value="au">🇦🇺 Australia</option>
-    <option value="de">🇩🇪 Germany</option>
-    <option value="fr">🇫🇷 France</option>
-  </select>
-  <button class="btn btn-primary" id="btnAdd" onclick="addTracker()">
-    <i class="fas fa-search"></i> Add &amp; Check
-  </button>
-  <div class="divider"></div>
-  <input type="password" name="apikey" id="inpApiKey" placeholder="SerpAPI Key">
-  <button class="btn btn-save" onclick="saveApiKey()">Save Key</button>
+    <div class="dashboard-grid">
+        <!-- LEFT: Add domain / keyword panel -->
+        <div class="card">
+            <h2><i class="fas fa-plus-circle" style="color: var(--blue);"></i> New Tracker</h2>
+            <div class="input-group">
+                <label><i class="fas fa-globe"></i> Domain</label>
+                <input type="text" id="domainInput" placeholder="example.com" value="wikipedia.org">
+            </div>
+            <div class="input-group">
+                <label><i class="fas fa-keyword"></i> Keyword</label>
+                <input type="text" id="keywordInput" placeholder="target keyword" value="artificial intelligence">
+            </div>
+            <div class="input-group">
+                <label><i class="fas fa-map-marker-alt"></i> Country</label>
+                <select id="countrySelect">
+                    <option value="us">🇺🇸 United States</option>
+                    <option value="gb">🇬🇧 United Kingdom</option>
+                    <option value="in">🇮🇳 India</option>
+                    <option value="ca">🇨🇦 Canada</option>
+                    <option value="au">🇦🇺 Australia</option>
+                    <option value="de">🇩🇪 Germany</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label><i class="fas fa-key"></i> SerpAPI Key</label>
+                <input type="password" id="apiKeyInput" placeholder="Your SerpAPI key">
+                <small style="color: var(--text3);">🔑 stored locally</small>
+            </div>
+            <button id="saveApiBtn"><i class="fas fa-save"></i> Save API Key</button>
+            <button id="addTrackerBtn" class="btn-secondary"><i class="fas fa-plus"></i> Add Domain + Keyword</button>
+        </div>
+
+        <!-- RIGHT: Domains list (Google Sheets style) -->
+        <div class="card">
+            <h2><i class="fas fa-trophy"></i> Domains & Rankings</h2>
+            <div style="display: flex; justify-content: space-between; gap: 12px; margin-bottom: 16px;">
+                <button id="refreshAllDomainsBtn" style="background: var(--green);"><i class="fas fa-sync-alt"></i> Refresh All Rankings</button>
+                <button id="clearAllDomainsBtn" class="btn-outline"><i class="fas fa-trash-alt"></i> Clear Data</button>
+            </div>
+            <div class="domains-table-wrapper">
+                <table class="domain-table">
+                    <thead>
+                        <tr><th>Domain</th><th>Keywords tracked</th><th>Global rank avg</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody id="domainsTableBody">
+                        <tr><td colspan="4" style="text-align: center; padding: 48px;">✨ Add a domain + keyword to start tracking</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <footer>RankPulse • uses SerpAPI for real Google positions • data saved in browser</footer>
 </div>
 
-<!-- MAIN -->
-<div class="main">
-
-  <!-- STATS -->
-  <div class="stats-grid">
-    <div class="stat-card c-total">
-      <div class="stat-label">Total Trackers</div>
-      <div class="stat-value" id="statTotal">0</div>
+<!-- Modal popup: keyword list for selected domain -->
+<div id="keywordModal" class="modal">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 id="modalDomainTitle">Keywords for domain</h3>
+            <button class="close-modal" id="closeModalBtn"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body" id="modalKeywordsList">
+            <div style="text-align: center;">loading keywords...</div>
+        </div>
     </div>
-    <div class="stat-card c-top3">
-      <div class="stat-label">Top 3 Positions</div>
-      <div class="stat-value" id="statTop3">0</div>
-    </div>
-    <div class="stat-card c-top10">
-      <div class="stat-label">Top 10 Positions</div>
-      <div class="stat-value" id="statTop10">0</div>
-    </div>
-    <div class="stat-card c-notfound">
-      <div class="stat-label">Not Found (&gt;100)</div>
-      <div class="stat-value" id="statNotFound">0</div>
-    </div>
-  </div>
-
-  <!-- TABLE -->
-  <div class="table-card">
-    <div class="table-card-header">
-      <span class="table-card-title">Rankings</span>
-      <button class="btn btn-secondary btn-sm" onclick="refreshAll()">
-        <i class="fas fa-sync-alt"></i> Refresh All
-      </button>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Keyword</th>
-            <th>Domain</th>
-            <th>Country</th>
-            <th>Position</th>
-            <th>Last Checked</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-      </table>
-    </div>
-  </div>
-
 </div>
 
-<div class="toast" id="toast"></div>
+<div id="toastMsg" class="toast-msg"></div>
 
 <script>
-  // ── STATE ──────────────────────────────────────────────
-  let trackers = [];
-  let apiKey = '';
-  let isRefreshing = false;
+    // ---------- DATA STRUCTURE ----------
+    // trackers = [ { id, domain, keyword, country, position, lastChecked, checkingFlag } ]
+    let trackers = [];
+    let apiKey = localStorage.getItem('serpapi_key') || '';
+    let refreshInProgress = false;
 
-  // ── THEME ──────────────────────────────────────────────
-  function setTheme(t) {
-    document.documentElement.classList.toggle('dark', t === 'dark');
-    localStorage.setItem('rp_theme', t);
-    document.getElementById('btnLight').classList.toggle('active', t === 'light');
-    document.getElementById('btnDark').classList.toggle('active', t === 'dark');
-  }
-  (function initTheme() {
-    const saved = localStorage.getItem('rp_theme') || 'light';
-    setTheme(saved);
-  })();
+    // DOM elements
+    const domainInput = document.getElementById('domainInput');
+    const keywordInput = document.getElementById('keywordInput');
+    const countrySelect = document.getElementById('countrySelect');
+    const apiKeyInput = document.getElementById('apiKeyInput');
+    const saveApiBtn = document.getElementById('saveApiBtn');
+    const addTrackerBtn = document.getElementById('addTrackerBtn');
+    const refreshAllDomainsBtn = document.getElementById('refreshAllDomainsBtn');
+    const clearAllDomainsBtn = document.getElementById('clearAllDomainsBtn');
+    const domainsTableBody = document.getElementById('domainsTableBody');
+    const modal = document.getElementById('keywordModal');
+    const modalDomainTitle = document.getElementById('modalDomainTitle');
+    const modalKeywordsList = document.getElementById('modalKeywordsList');
+    const closeModalBtn = document.getElementById('closeModalBtn');
 
-  // ── TOAST ──────────────────────────────────────────────
-  let toastTimer;
-  function showToast(msg, type = 'success') {
-    const el = document.getElementById('toast');
-    el.textContent = msg;
-    el.className = 'toast show ' + type;
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { el.className = 'toast'; }, 3200);
-  }
-
-  // ── PERSIST ────────────────────────────────────────────
-  function save() {
-    localStorage.setItem('rp_trackers', JSON.stringify(trackers));
-  }
-  function load() {
-    try { trackers = JSON.parse(localStorage.getItem('rp_trackers') || '[]'); } catch { trackers = []; }
-    apiKey = localStorage.getItem('rp_apikey') || '';
-    document.getElementById('inpApiKey').value = apiKey;
-    render();
-  }
-  function saveApiKey() {
-    const k = document.getElementById('inpApiKey').value.trim();
-    if (!k) { showToast('Enter a valid SerpAPI key', 'error'); return; }
-    apiKey = k;
-    localStorage.setItem('rp_apikey', apiKey);
-    showToast('API key saved');
-  }
-
-  // ── STATS ──────────────────────────────────────────────
-  function updateStats() {
-    const all = trackers;
-    document.getElementById('statTotal').textContent    = all.length;
-    document.getElementById('statTop3').textContent     = all.filter(t => t.pos >= 1 && t.pos <= 3).length;
-    document.getElementById('statTop10').textContent    = all.filter(t => t.pos >= 1 && t.pos <= 10).length;
-    document.getElementById('statNotFound').textContent = all.filter(t => t.pos === -1).length;
-  }
-
-  // ── BADGE ──────────────────────────────────────────────
-  function badge(pos) {
-    if (pos === null)  return '<span class="badge badge-pending"><i class="fas fa-clock"></i> Pending</span>';
-    if (pos === 0)     return '<span class="badge badge-checking"><span class="spin">↻</span> Checking…</span>';
-    if (pos === -1)    return '<span class="badge badge-none"><i class="fas fa-times"></i> Not in Top 100</span>';
-    if (pos === 1)     return '<span class="badge badge-1"><i class="fas fa-crown"></i> #1</span>';
-    if (pos <= 3)      return `<span class="badge badge-top3"><i class="fas fa-medal"></i> #${pos}</span>`;
-    if (pos <= 10)     return `<span class="badge badge-top10"><i class="fas fa-chart-line"></i> #${pos}</span>`;
-    return `<span class="badge badge-other">#${pos}</span>`;
-  }
-
-  const FLAGS = { us:'🇺🇸', gb:'🇬🇧', in:'🇮🇳', ca:'🇨🇦', au:'🇦🇺', de:'🇩🇪', fr:'🇫🇷' };
-  function esc(s) { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-
-  // ── RENDER ─────────────────────────────────────────────
-  function render() {
-    const tbody = document.getElementById('tableBody');
-    if (!trackers.length) {
-      tbody.innerHTML = '<tr class="empty-row"><td colspan="6"><i class="fas fa-search" style="margin-right:8px;opacity:.4"></i>No trackers yet. Add a domain and keyword above.</td></tr>';
-      updateStats();
-      return;
+    // Helper: show toast
+    function showToast(msg, isError = false) {
+        const toast = document.getElementById('toastMsg');
+        toast.textContent = msg;
+        toast.style.display = 'block';
+        toast.style.borderLeftColor = isError ? '#ef4444' : '#10b981';
+        setTimeout(() => {
+            toast.style.display = 'none';
+        }, 2800);
     }
-    tbody.innerHTML = trackers.map(t => `
-      <tr>
-        <td class="keyword-cell">${esc(t.keyword)}</td>
-        <td class="domain-cell">${esc(t.domain)}</td>
-        <td>${FLAGS[t.country] || '🌐'} ${t.country.toUpperCase()}</td>
-        <td>${badge(t.pos)}</td>
-        <td class="time-cell">${t.checked ? new Date(t.checked).toLocaleString() : '—'}</td>
-        <td class="actions-cell">
-          <button class="btn btn-check" onclick="checkOne('${t.id}')"><i class="fas fa-sync-alt"></i> Check</button>
-          <button class="btn btn-delete" onclick="deleteOne('${t.id}')"><i class="fas fa-trash"></i></button>
-        </td>
-      </tr>`).join('');
-    updateStats();
-  }
 
-  // ── ADD ────────────────────────────────────────────────
-  async function addTracker() {
-    let domain  = document.getElementById('inpDomain').value.trim();
-    let keyword = document.getElementById('inpKeyword').value.trim();
-    let country = document.getElementById('inpCountry').value;
-    if (!domain || !keyword) { showToast('Enter domain and keyword', 'error'); return; }
-    domain = domain.replace(/^https?:\/\//,'').replace(/^www\./,'').split('/')[0].toLowerCase();
-    if (trackers.some(t => t.domain === domain && t.keyword === keyword && t.country === country)) {
-      showToast('This tracker already exists', 'error'); return;
+    // Load / Save
+    function loadData() {
+        const saved = localStorage.getItem('rank_trackers_v2');
+        if (saved) {
+            try {
+                trackers = JSON.parse(saved);
+            } catch(e) { trackers = []; }
+        }
+        if (trackers.length === 0) {
+            // seed demo with two entries
+            trackers = [
+                { id: Date.now() + 1, domain: 'wikipedia.org', keyword: 'artificial intelligence', country: 'us', position: null, lastChecked: null },
+                { id: Date.now() + 2, domain: 'github.com', keyword: 'machine learning', country: 'us', position: null, lastChecked: null }
+            ];
+            saveData();
+        }
+        apiKeyInput.value = apiKey;
+        renderDomainsTable();
     }
-    const id = Date.now().toString(36) + Math.random().toString(36).slice(2,5);
-    trackers.push({ id, domain, keyword, country, pos: null, checked: null });
-    save(); render();
-    document.getElementById('inpKeyword').value = '';
-    showToast('Tracker added');
-    if (apiKey) await checkOne(id);
-    else showToast('Save a SerpAPI key to check rankings', 'error');
-  }
 
-  // ── DELETE ─────────────────────────────────────────────
-  function deleteOne(id) {
-    trackers = trackers.filter(t => t.id !== id);
-    save(); render();
-    showToast('Tracker removed');
-  }
-
-  // ── CHECK ONE ──────────────────────────────────────────
-  async function checkOne(id) {
-    if (!apiKey) { showToast('Save a SerpAPI key first', 'error'); return; }
-    const t = trackers.find(x => x.id === id);
-    if (!t) return;
-    t.pos = 0; render();
-    try {
-      const res = await fetch('/api/check-rank', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey, keyword: t.keyword, domain: t.domain, country: t.country })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'API error');
-      t.pos = data.position;
-      t.checked = data.checkedAt;
-      save(); render();
-      showToast(t.pos === -1
-        ? `"${t.keyword}" not in top 100`
-        : `"${t.keyword}" → position #${t.pos}`);
-    } catch (err) {
-      t.pos = null; render();
-      showToast(err.message, 'error');
+    function saveData() {
+        localStorage.setItem('rank_trackers_v2', JSON.stringify(trackers));
+        localStorage.setItem('serpapi_key', apiKey);
     }
-  }
 
-  // ── REFRESH ALL ────────────────────────────────────────
-  async function refreshAll() {
-    if (!apiKey) { showToast('Save a SerpAPI key first', 'error'); return; }
-    if (isRefreshing) { showToast('Already refreshing…', 'error'); return; }
-    if (!trackers.length) { showToast('No trackers to refresh', 'error'); return; }
-    isRefreshing = true;
-    showToast(`Checking ${trackers.length} keywords…`);
-    for (const t of trackers) {
-      t.pos = 0; render();
-      try {
-        const res = await fetch('/api/check-rank', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ apiKey, keyword: t.keyword, domain: t.domain, country: t.country })
+    // get rank badge class
+    function getRankHtml(position) {
+        if (position === null) return '<span class="rank-badge badge-pending"><i class="fas fa-clock"></i> pending</span>';
+        if (position === -1) return '<span class="rank-badge rank-none"><i class="fas fa-times-circle"></i> Not in top 100</span>';
+        if (position === 1) return `<span class="rank-badge rank-1">🏆 #1</span>`;
+        if (position <= 3) return `<span class="rank-badge rank-top3">🔥 #${position}</span>`;
+        if (position <= 10) return `<span class="rank-badge rank-top10">📈 #${position}</span>`;
+        return `<span class="rank-badge" style="background: var(--s3);">#${position}</span>`;
+    }
+
+    // Group trackers by domain
+    function getDomainGroups() {
+        const map = new Map(); // key: domain_lower => { domain, keywords: [], avgPos, totalChecked }
+        for (let t of trackers) {
+            const dKey = t.domain.toLowerCase();
+            if (!map.has(dKey)) {
+                map.set(dKey, { domain: t.domain, keywords: [], positions: [] });
+            }
+            const group = map.get(dKey);
+            group.keywords.push(t);
+            if (t.position && t.position > 0) group.positions.push(t.position);
+        }
+        const result = [];
+        for (let [_, group] of map.entries()) {
+            let avgPos = null;
+            if (group.positions.length > 0) {
+                const sum = group.positions.reduce((a,b)=>a+b,0);
+                avgPos = (sum / group.positions.length).toFixed(1);
+            }
+            result.push({
+                domain: group.domain,
+                keywordsCount: group.keywords.length,
+                avgRank: avgPos,
+                keywordsList: group.keywords
+            });
+        }
+        return result;
+    }
+
+    async function checkSingleRank(tracker) {
+        if (!apiKey) {
+            showToast('❌ Save your SerpAPI key first', true);
+            return false;
+        }
+        if (tracker.checkingFlag) return false;
+        tracker.checkingFlag = true;
+        tracker.position = 0; // loading visual
+        renderDomainsTable();
+
+        try {
+            const response = await fetch('/api/check-rank', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    apiKey: apiKey,
+                    keyword: tracker.keyword,
+                    country: tracker.country,
+                    domain: tracker.domain
+                })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'request failed');
+            tracker.position = data.position;
+            tracker.lastChecked = data.checkedAt || new Date().toISOString();
+            saveData();
+            renderDomainsTable();
+            showToast(`✅ "${tracker.keyword}" → ${tracker.position === -1 ? 'not found' : '#'+tracker.position} on Google`);
+            return true;
+        } catch (err) {
+            console.error(err);
+            tracker.position = null;
+            saveData();
+            renderDomainsTable();
+            showToast(`⚠️ Error: ${err.message}`, true);
+            return false;
+        } finally {
+            tracker.checkingFlag = false;
+        }
+    }
+
+    async function refreshAllKeywords() {
+        if (!apiKey) {
+            showToast('🔐 API key missing. Save your SerpAPI key first.', true);
+            return;
+        }
+        if (refreshInProgress) {
+            showToast('Refresh already running...', true);
+            return;
+        }
+        refreshInProgress = true;
+        showToast(`🔄 Refreshing ${trackers.length} keywords ...`);
+        for (let t of trackers) {
+            await checkSingleRank(t);
+            await new Promise(r => setTimeout(r, 1200)); // gentle delay to avoid rate limits
+        }
+        refreshInProgress = false;
+        showToast('✅ All rankings updated');
+    }
+
+    function deleteTrackerById(id) {
+        trackers = trackers.filter(t => t.id !== id);
+        saveData();
+        renderDomainsTable();
+        showToast('Keyword removed');
+    }
+
+    function addTracker() {
+        let domain = domainInput.value.trim();
+        let keyword = keywordInput.value.trim();
+        let country = countrySelect.value;
+        if (!domain || !keyword) {
+            showToast('Domain and keyword required', true);
+            return;
+        }
+        domain = domain.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+        // prevent duplicates same domain+keyword
+        const exists = trackers.some(t => t.domain === domain && t.keyword === keyword && t.country === country);
+        if (exists) {
+            showToast('This exact domain + keyword already tracked', true);
+            return;
+        }
+        const newTracker = {
+            id: Date.now(),
+            domain: domain,
+            keyword: keyword,
+            country: country,
+            position: null,
+            lastChecked: null,
+            checkingFlag: false
+        };
+        trackers.push(newTracker);
+        saveData();
+        renderDomainsTable();
+        domainInput.value = '';
+        keywordInput.value = '';
+        showToast(`➕ Added "${keyword}" for ${domain}`);
+        if (apiKey) {
+            setTimeout(() => checkSingleRank(newTracker), 400);
+        } else {
+            showToast('💡 Save API key to fetch live ranks');
+        }
+    }
+
+    function renderDomainsTable() {
+        const groups = getDomainGroups();
+        if (groups.length === 0) {
+            domainsTableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:48px;">🏁 No domains yet. Add a domain + keyword</td></tr>';
+            return;
+        }
+        domainsTableBody.innerHTML = groups.map(group => {
+            const avgRankDisplay = group.avgRank ? `#${group.avgRank}` : '—';
+            return `
+                <tr class="domain-row" data-domain="${escapeHtml(group.domain)}">
+                    <td><strong><i class="fas fa-globe"></i> ${escapeHtml(group.domain)}</strong></td>
+                    <td><span class="keyword-chip">${group.keywordsCount} keyword${group.keywordsCount !== 1 ? 's' : ''}</span></td>
+                    <td>${avgRankDisplay !== '—' ? `<span class="rank-badge rank-top10">${avgRankDisplay}</span>` : '<span class="badge-pending">—</span>'}</td>
+                    <td class="action-icons">
+                        <i class="fas fa-eye" onclick="event.stopPropagation(); openDomainModal('${escapeHtml(group.domain)}')" style="color: var(--blue);"></i>
+                        <i class="fas fa-trash-alt" onclick="event.stopPropagation(); deleteDomainCompletely('${escapeHtml(group.domain)}')" style="color: var(--red);"></i>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        // attach click on domain-row to open modal
+        document.querySelectorAll('.domain-row').forEach(row => {
+            row.addEventListener('click', (e) => {
+                const domainAttr = row.getAttribute('data-domain');
+                if (domainAttr) openDomainModal(domainAttr);
+            });
         });
-        const data = await res.json();
-        if (res.ok) { t.pos = data.position; t.checked = data.checkedAt; save(); render(); }
-        await new Promise(r => setTimeout(r, 1200));
-      } catch { t.pos = null; render(); }
     }
-    isRefreshing = false;
-    showToast('All rankings updated');
-  }
 
-  document.getElementById('inpKeyword').addEventListener('keypress', e => { if (e.key === 'Enter') addTracker(); });
-  document.getElementById('inpDomain').addEventListener('keypress', e => { if (e.key === 'Enter') addTracker(); });
+    function deleteDomainCompletely(domainRaw) {
+        if (confirm(`Delete ALL keywords for domain "${domainRaw}" ?`)) {
+            trackers = trackers.filter(t => t.domain !== domainRaw);
+            saveData();
+            renderDomainsTable();
+            showToast(`🗑️ Removed ${domainRaw}`);
+        }
+    }
 
-  load();
+    function openDomainModal(domainName) {
+        const domainKeywords = trackers.filter(t => t.domain === domainName);
+        if (!domainKeywords.length) {
+            modalKeywordsList.innerHTML = '<div style="text-align:center;">No keywords found</div>';
+        } else {
+            modalDomainTitle.innerText = `🔍 Keywords for ${domainName}`;
+            modalKeywordsList.innerHTML = domainKeywords.map(kw => {
+                const rankHtml = getRankHtml(kw.position);
+                const lastCheck = kw.lastChecked ? new Date(kw.lastChecked).toLocaleString() : 'never';
+                return `
+                    <div class="keyword-item">
+                        <div>
+                            <div class="keyword-text"><i class="fas fa-search"></i> ${escapeHtml(kw.keyword)}</div>
+                            <div class="last-check">last: ${lastCheck}</div>
+                            <div class="stat-summary">country: ${kw.country.toUpperCase()}</div>
+                        </div>
+                        <div class="rank-detail">
+                            ${rankHtml}
+                            <button class="refresh-keyword" data-id="${kw.id}"><i class="fas fa-sync-alt"></i> Check</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            // attach refresh buttons inside modal
+            document.querySelectorAll('.refresh-keyword').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const kwId = parseInt(btn.getAttribute('data-id'));
+                    const tracker = trackers.find(t => t.id === kwId);
+                    if (tracker) {
+                        await checkSingleRank(tracker);
+                        openDomainModal(domainName); // refresh modal content
+                    }
+                });
+            });
+        }
+        modal.style.display = 'flex';
+    }
+
+    function closeModalFn() {
+        modal.style.display = 'none';
+    }
+
+    function clearAllData() {
+        if (confirm('⚠️ Remove all domains and keywords? This cannot be undone.')) {
+            trackers = [];
+            saveData();
+            renderDomainsTable();
+            showToast('All trackers cleared');
+        }
+    }
+
+    function saveApiKey() {
+        const key = apiKeyInput.value.trim();
+        if (!key) {
+            showToast('Enter valid SerpAPI key', true);
+            return;
+        }
+        apiKey = key;
+        saveData();
+        showToast('✅ API key saved. Now you can refresh rankings.');
+    }
+
+    // theme management
+    function setTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        document.querySelectorAll('.theme-btn').forEach(btn => {
+            btn.classList.toggle('active', (theme === 'light' && btn.innerText.includes('Light')) ||
+                                          (theme === 'dark' && btn.innerText.includes('Dark')));
+        });
+        localStorage.setItem('rankpulse_theme', theme);
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    // event binding
+    addTrackerBtn.addEventListener('click', addTracker);
+    saveApiBtn.addEventListener('click', saveApiKey);
+    refreshAllDomainsBtn.addEventListener('click', refreshAllKeywords);
+    clearAllDomainsBtn.addEventListener('click', clearAllData);
+    closeModalBtn.addEventListener('click', closeModalFn);
+    window.addEventListener('click', (e) => { if (e.target === modal) closeModalFn(); });
+
+    // Load theme
+    const savedTheme = localStorage.getItem('rankpulse_theme') || 'dark';
+    setTheme(savedTheme);
+    loadData();
+    // prefill apiKey input
+    if (apiKey) apiKeyInput.value = apiKey;
+
+    // expose global functions for inline onclick
+    window.deleteDomainCompletely = deleteDomainCompletely;
+    window.openDomainModal = openDomainModal;
+    window.setTheme = setTheme;
 </script>
 </body>
 </html>
