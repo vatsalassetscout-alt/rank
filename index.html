@@ -456,37 +456,46 @@
 
   // ── PERSIST ────────────────────────────────────────────
  // Replace the save() and load() functions:
-
+// Replace the save() function
 async function save() {
   try {
-    await fetch('/api/save-trackers', {
+    const response = await fetch('/api/save-trackers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ trackers })
     });
+    if (!response.ok) throw new Error('Save failed');
+    console.log('Saved to Google Sheets');
   } catch (error) {
     console.error('Failed to save to Google Sheets:', error);
-    showToast('Failed to save to cloud', 'error');
+    // Fallback to localStorage
+    localStorage.setItem('rp_trackers', JSON.stringify(trackers));
   }
 }
 
+// Replace the load() function
 async function load() {
   try {
     const response = await fetch('/api/get-trackers');
     const data = await response.json();
     trackers = data.trackers || [];
-    apiKey = localStorage.getItem('rp_apikey') || '';
-    document.getElementById('inpApiKey').value = apiKey;
-    render();
+    console.log(`Loaded ${trackers.length} trackers from Google Sheets`);
   } catch (error) {
     console.error('Failed to load from Google Sheets:', error);
     // Fallback to localStorage
-    try { trackers = JSON.parse(localStorage.getItem('rp_trackers') || '[]'); } catch { trackers = []; }
-    render();
+    try { 
+      trackers = JSON.parse(localStorage.getItem('rp_trackers') || '[]'); 
+    } catch { 
+      trackers = []; 
+    }
   }
+  
+  apiKey = localStorage.getItem('rp_apikey') || '';
+  document.getElementById('inpApiKey').value = apiKey;
+  render();
 }
 
-// Update addTracker function:
+// Update addTracker function
 async function addTracker() {
   let domain = document.getElementById('inpDomain').value.trim();
   let keyword = document.getElementById('inpKeyword').value.trim();
@@ -509,34 +518,44 @@ async function addTracker() {
   trackers.push(newTracker);
   
   // Save to Google Sheets
-  await fetch('/api/add-tracker', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(newTracker)
-  });
+  try {
+    await fetch('/api/add-tracker', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newTracker)
+    });
+    showToast('Tracker added to cloud');
+  } catch (error) {
+    console.error('Failed to add tracker:', error);
+    showToast('Added locally but cloud save failed', 'error');
+  }
   
   render();
   document.getElementById('inpKeyword').value = '';
-  showToast('Tracker added to cloud');
   if (apiKey) await checkOne(id);
   else showToast('Save a SerpAPI key to check rankings', 'error');
 }
 
-// Update deleteOne function:
+// Update deleteOne function
 async function deleteOne(id) {
   trackers = trackers.filter(t => t.id !== id);
   
-  await fetch('/api/delete-tracker', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id })
-  });
+  try {
+    await fetch('/api/delete-tracker', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    });
+    showToast('Tracker removed from cloud');
+  } catch (error) {
+    console.error('Failed to delete:', error);
+    showToast('Removed locally but cloud delete failed', 'error');
+  }
   
   render();
-  showToast('Tracker removed from cloud');
 }
 
-// Update checkOne to include trackerId:
+// Update checkOne function to include trackerId
 async function checkOne(id) {
   if (!apiKey) { showToast('Save a SerpAPI key first', 'error'); return; }
   const t = trackers.find(x => x.id === id);
@@ -551,7 +570,7 @@ async function checkOne(id) {
         keyword: t.keyword, 
         domain: t.domain, 
         country: t.country,
-        trackerId: t.id  // Send tracker ID to update in sheet
+        trackerId: t.id  // This sends the ID to update in sheet
       })
     });
     const data = await res.json();
