@@ -455,15 +455,120 @@
   }
 
   // ── PERSIST ────────────────────────────────────────────
-  function save() {
-    localStorage.setItem('rp_trackers', JSON.stringify(trackers));
+ // Replace the save() and load() functions:
+
+async function save() {
+  try {
+    await fetch('/api/save-trackers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trackers })
+    });
+  } catch (error) {
+    console.error('Failed to save to Google Sheets:', error);
+    showToast('Failed to save to cloud', 'error');
   }
-  function load() {
-    try { trackers = JSON.parse(localStorage.getItem('rp_trackers') || '[]'); } catch { trackers = []; }
+}
+
+async function load() {
+  try {
+    const response = await fetch('/api/get-trackers');
+    const data = await response.json();
+    trackers = data.trackers || [];
     apiKey = localStorage.getItem('rp_apikey') || '';
     document.getElementById('inpApiKey').value = apiKey;
     render();
+  } catch (error) {
+    console.error('Failed to load from Google Sheets:', error);
+    // Fallback to localStorage
+    try { trackers = JSON.parse(localStorage.getItem('rp_trackers') || '[]'); } catch { trackers = []; }
+    render();
   }
+}
+
+// Update addTracker function:
+async function addTracker() {
+  let domain = document.getElementById('inpDomain').value.trim();
+  let keyword = document.getElementById('inpKeyword').value.trim();
+  let country = document.getElementById('inpCountry').value;
+  
+  if (!domain || !keyword) { 
+    showToast('Enter domain and keyword', 'error'); 
+    return; 
+  }
+  
+  domain = domain.replace(/^https?:\/\//,'').replace(/^www\./,'').split('/')[0].toLowerCase();
+  
+  if (trackers.some(t => t.domain === domain && t.keyword === keyword && t.country === country)) {
+    showToast('This tracker already exists', 'error'); 
+    return;
+  }
+  
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2,5);
+  const newTracker = { id, domain, keyword, country, pos: null, checked: null };
+  trackers.push(newTracker);
+  
+  // Save to Google Sheets
+  await fetch('/api/add-tracker', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(newTracker)
+  });
+  
+  render();
+  document.getElementById('inpKeyword').value = '';
+  showToast('Tracker added to cloud');
+  if (apiKey) await checkOne(id);
+  else showToast('Save a SerpAPI key to check rankings', 'error');
+}
+
+// Update deleteOne function:
+async function deleteOne(id) {
+  trackers = trackers.filter(t => t.id !== id);
+  
+  await fetch('/api/delete-tracker', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id })
+  });
+  
+  render();
+  showToast('Tracker removed from cloud');
+}
+
+// Update checkOne to include trackerId:
+async function checkOne(id) {
+  if (!apiKey) { showToast('Save a SerpAPI key first', 'error'); return; }
+  const t = trackers.find(x => x.id === id);
+  if (!t) return;
+  t.pos = 0; render();
+  try {
+    const res = await fetch('/api/check-rank', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        apiKey, 
+        keyword: t.keyword, 
+        domain: t.domain, 
+        country: t.country,
+        trackerId: t.id  // Send tracker ID to update in sheet
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'API error');
+    t.pos = data.position;
+    t.checked = data.checkedAt;
+    await save(); // Sync to Google Sheets
+    render();
+    showToast(t.pos === -1
+      ? `"${t.keyword}" not in top 100`
+      : `"${t.keyword}" → position #${t.pos}`);
+  } catch (err) {
+    t.pos = null; render();
+    showToast(err.message, 'error');
+  }
+}
+  
   function saveApiKey() {
     const k = document.getElementById('inpApiKey').value.trim();
     if (!k) { showToast('Enter a valid SerpAPI key', 'error'); return; }
