@@ -569,22 +569,28 @@ async function checkOne(id) {
         apiKey, 
         keyword: t.keyword, 
         domain: t.domain, 
-        country: t.country,
-        trackerId: t.id  // This sends the ID to update in sheet
+        country: t.country 
       })
     });
+    
+    // Check if response is JSON
+    const contentType = res.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await res.text();
+      console.error('Non-JSON response:', text);
+      throw new Error('Server returned invalid response');
+    }
+    
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'API error');
     t.pos = data.position;
     t.checked = data.checkedAt;
-    await save(); // Sync to Google Sheets
-    render();
-    showToast(t.pos === -1
-      ? `"${t.keyword}" not in top 100`
-      : `"${t.keyword}" → position #${t.pos}`);
+    save(); render();
+    showToast(t.pos === -1 ? `"${t.keyword}" not in top 100` : `"${t.keyword}" → position #${t.pos}`);
   } catch (err) {
     t.pos = null; render();
     showToast(err.message, 'error');
+    console.error('Check error:', err);
   }
 }
   
